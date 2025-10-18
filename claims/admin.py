@@ -27,6 +27,19 @@ class ClaimAdmin(admin.ModelAdmin):
     autocomplete_fields = ['warranty', 'created_by']
     inlines = [ClaimNoteInline, ClaimAttachmentInline]
     
+    def get_queryset(self, request):
+        """Optimize queryset with select_related to avoid N+1 queries"""
+        queryset = super().get_queryset(request)
+        return queryset.select_related(
+            'warranty',
+            'warranty__receipt_item',
+            'warranty__receipt_item__receipt',
+            'warranty__receipt_item__receipt__customer',
+            'warranty__receipt_item__receipt__retailer',
+            'warranty__receipt_item__receipt__store',
+            'created_by'
+        ).prefetch_related('notes', 'attachments')
+    
     fieldsets = (
         ('Claim Information', {
             'fields': ('claim_number', 'warranty', 'get_product')
@@ -87,6 +100,11 @@ class ClaimNoteAdmin(admin.ModelAdmin):
     search_fields = ['claim__claim_number', 'content']
     readonly_fields = ['created_at']
     autocomplete_fields = ['claim', 'author']
+    
+    def get_queryset(self, request):
+        """Optimize queryset"""
+        queryset = super().get_queryset(request)
+        return queryset.select_related('claim', 'author')
 
 
 @admin.register(ClaimAttachment)
@@ -96,3 +114,8 @@ class ClaimAttachmentAdmin(admin.ModelAdmin):
     search_fields = ['claim__claim_number', 'file_name', 'uploaded_by__email']
     readonly_fields = ['file_name', 'file_size', 'file_size_display', 'uploaded_at']
     autocomplete_fields = ['claim', 'uploaded_by']
+    
+    def get_queryset(self, request):
+        """Optimize queryset"""
+        queryset = super().get_queryset(request)
+        return queryset.select_related('claim', 'uploaded_by')
