@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Warranty
+from .models import Warranty, CustomerWarranty
 from receipts.models import ReceiptItem
 
 @admin.register(Warranty)
@@ -93,3 +93,41 @@ class WarrantyAdmin(admin.ModelAdmin):
             return obj.status
         except:
             return '-'
+
+
+@admin.register(CustomerWarranty)
+class CustomerWarrantyAdmin(admin.ModelAdmin):
+    list_display = ['id', 'product_name', 'customer_email', 'expiry_date', 'get_status', 'created_at']
+    list_filter = ['expiry_date', 'created_at']
+    search_fields = ['product_name', 'customer__email', 'customer__username', 'notes']
+    ordering = ['-created_at']
+    date_hierarchy = 'expiry_date'
+    readonly_fields = ['customer', 'is_active', 'days_remaining', 'get_status', 'created_at', 'updated_at']
+    
+    fieldsets = (
+        ('Product Information', {
+            'fields': ('customer', 'product_name', 'expiry_date')
+        }),
+        ('Warranty Document', {
+            'fields': ('warranty_image',)
+        }),
+        ('Additional Details', {
+            'fields': ('notes',)
+        }),
+        ('Status', {
+            'fields': ('get_status', 'is_active', 'days_remaining'),
+            'classes': ('collapse',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    @admin.display(description='Customer Email')
+    def customer_email(self, obj):
+        return obj.customer.email if obj.customer else '-'
+    
+    @admin.display(description='Status')
+    def get_status(self, obj):
+        return obj.status

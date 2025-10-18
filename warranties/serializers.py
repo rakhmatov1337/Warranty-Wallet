@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Warranty
+from .models import Warranty, CustomerWarranty
 from receipts.serializers import ReceiptSerializer, ReceiptItemSerializer
 from receipts.models import ReceiptItem
 from accounts.serializers import UserSerializer
@@ -95,3 +95,66 @@ class WarrantyCreateSerializer(serializers.ModelSerializer):
         validated_data['expiry_date'] = receipt_item.receipt.date + relativedelta(months=coverage_months)
         
         return super().create(validated_data)
+
+
+# ==================== CUSTOMER WARRANTY SERIALIZERS ====================
+
+class CustomerWarrantySerializer(serializers.ModelSerializer):
+    """Serializer for customer-uploaded warranties"""
+    warranty_image_url = serializers.SerializerMethodField()
+    is_active = serializers.ReadOnlyField()
+    days_remaining = serializers.ReadOnlyField()
+    status = serializers.ReadOnlyField()
+    
+    class Meta:
+        model = CustomerWarranty
+        fields = [
+            'id', 'product_name', 'expiry_date', 'warranty_image', 
+            'warranty_image_url', 'notes', 'is_active', 'days_remaining', 
+            'status', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+    
+    def get_warranty_image_url(self, obj):
+        """Get full URL for warranty image"""
+        if obj.warranty_image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.warranty_image.url)
+            return obj.warranty_image.url
+        return None
+
+
+class CustomerWarrantyCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating customer warranties"""
+    
+    class Meta:
+        model = CustomerWarranty
+        fields = ['product_name', 'expiry_date', 'warranty_image', 'notes']
+    
+    def create(self, validated_data):
+        """Set customer from request user"""
+        validated_data['customer'] = self.context['request'].user
+        return super().create(validated_data)
+    
+    def validate_expiry_date(self, value):
+        """Validate expiry date is in the future"""
+        from django.utils import timezone
+        if value < timezone.now().date():
+            raise serializers.ValidationError("Expiry date must be in the future")
+        return value
+
+
+class CustomerWarrantyUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for updating customer warranties"""
+    
+    class Meta:
+        model = CustomerWarranty
+        fields = ['product_name', 'expiry_date', 'warranty_image', 'notes']
+    
+    def validate_expiry_date(self, value):
+        """Validate expiry date is in the future"""
+        from django.utils import timezone
+        if value < timezone.now().date():
+            raise serializers.ValidationError("Expiry date must be in the future")
+        return value
