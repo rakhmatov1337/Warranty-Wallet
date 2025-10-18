@@ -26,15 +26,16 @@ from receipts.views import CustomerHomeView
 
 schema_view = get_schema_view(
    openapi.Info(
-      title="Warranty wallet API",
+      title="Warranty Wallet API",
       default_version='v1',
-      description="Warranty wallet API",
+      description="Warranty Wallet API - Manage warranties, receipts, and claims",
       terms_of_service="https://www.google.com/policies/terms/",
       contact=openapi.Contact(email="kaxarovdev@gmail.com"),
       license=openapi.License(name="BSD License"),
    ),
    public=True,
    permission_classes=(permissions.AllowAny,),
+   authentication_classes=[],
 )
 
 
