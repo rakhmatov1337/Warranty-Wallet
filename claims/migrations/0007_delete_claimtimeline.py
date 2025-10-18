@@ -10,7 +10,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.DeleteModel(
-            name='ClaimTimeline',
+        # Use RunSQL with IF EXISTS to handle cases where table was already dropped
+        migrations.RunSQL(
+            sql='DROP TABLE IF EXISTS claims_claimtimeline CASCADE;',
+            reverse_sql=migrations.RunSQL.noop
         ),
     ]
