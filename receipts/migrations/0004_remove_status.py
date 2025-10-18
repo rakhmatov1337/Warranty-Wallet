@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('receipts', '0004_remove_tax_and_subtotal'),
+        ('receipts', '0003_remove_tax_and_subtotal'),
     ]
 
     operations = [

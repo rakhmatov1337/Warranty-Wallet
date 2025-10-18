@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('store', '0001_initial'),
-        ('receipts', '0002_alter_receipt_structure'),
+        ('receipts', '0001_initial'),
     ]
 
     operations = [
