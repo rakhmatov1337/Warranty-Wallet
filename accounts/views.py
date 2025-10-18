@@ -9,7 +9,11 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
 
-class UserDetailView(generics.RetrieveAPIView):
+class UserDetailView(generics.RetrieveUpdateAPIView):
+    """
+    Get and update user profile
+    Users can update their own email, full_name, and phone_number
+    """
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
 

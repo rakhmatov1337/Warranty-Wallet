@@ -50,4 +50,12 @@ class RegisterSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'email', 'full_name', 'phone_number', 'role')
+        fields = ('id', 'email', 'full_name', 'phone_number', 'role', 'username')
+        read_only_fields = ('role',)  # Users cannot change their own role
+    
+    def validate_email(self, value):
+        """Ensure email is unique when updating"""
+        user = self.instance
+        if user and User.objects.exclude(pk=user.pk).filter(email=value).exists():
+            raise serializers.ValidationError("This email is already in use by another user.")
+        return value
