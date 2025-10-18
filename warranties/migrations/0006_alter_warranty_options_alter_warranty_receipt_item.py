@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('receipts', '0007_alter_receipt_options'),
+        ('receipts', '0006_alter_receipt_options'),
         ('warranties', '0005_remove_status_field'),
     ]
 

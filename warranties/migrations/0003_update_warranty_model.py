@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('warranties', '0002_remove_user_field'),
-        ('receipts', '0006_add_product_specs_to_item'),
+        ('receipts', '0005_add_product_specs_to_item'),
     ]
 
     operations = [

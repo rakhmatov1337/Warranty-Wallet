@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('warranties', '0003_update_warranty_model'),
-        ('receipts', '0006_add_product_specs_to_item'),
+        ('receipts', '0005_add_product_specs_to_item'),
     ]
 
     operations = [
