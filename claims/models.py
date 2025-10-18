@@ -124,6 +124,9 @@ class ClaimAttachment(models.Model):
     @property
     def file_size_display(self):
         """Convert file size to human-readable format"""
+        if self.file_size is None:
+            return "Unknown"
+        
         size = self.file_size
         for unit in ['B', 'KB', 'MB', 'GB']:
             if size < 1024.0:
