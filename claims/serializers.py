@@ -3,6 +3,10 @@ from .models import Claim, ClaimNote, ClaimAttachment
 from warranties.serializers import WarrantyListSerializer
 from warranties.models import Warranty
 from accounts.serializers import UserSerializer
+from .ai_priority import priority_detector
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ClaimNoteSerializer(serializers.ModelSerializer):
@@ -85,6 +89,7 @@ class ClaimDetailSerializer(serializers.ModelSerializer):
     product_name = serializers.ReadOnlyField()
     notes = ClaimNoteSerializer(many=True, read_only=True)
     attachments = ClaimAttachmentSerializer(many=True, read_only=True)
+    ai_priority_note = serializers.SerializerMethodField()
     
     # Product information from warranty
     product_model = serializers.CharField(source='warranty.receipt_item.model', read_only=True)
@@ -96,13 +101,17 @@ class ClaimDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'claim_number', 'warranty', 'warranty_details',
             'issue_summary', 'detailed_description', 'category',
-            'priority', 'status', 'assigned_to_details',
+            'priority', 'ai_priority_note', 'status', 'assigned_to_details',
             'estimated_cost', 'actual_cost',
             'customer_details', 'retailer_details', 'created_by_details',
             'product_name', 'product_model', 'serial_number', 'purchase_date',
             'notes', 'attachments',
             'submitted_at', 'updated_at'
         ]
+    
+    def get_ai_priority_note(self, obj):
+        """Provide note about AI-powered priority detection"""
+        return "Priority auto-detected by AI based on claim description severity"
 
 
 class ClaimCreateSerializer(serializers.ModelSerializer):
@@ -114,6 +123,9 @@ class ClaimCreateSerializer(serializers.ModelSerializer):
             'warranty_id', 'issue_summary', 'detailed_description',
             'category', 'priority'
         ]
+        extra_kwargs = {
+            'priority': {'required': False}  # Optional - will be auto-detected by AI
+        }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -140,6 +152,14 @@ class ClaimCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         # Set created_by from request user
         validated_data['created_by'] = self.context['request'].user
+        
+        # Auto-detect priority using AI if not provided
+        if 'priority' not in validated_data or not validated_data['priority']:
+            description = validated_data.get('detailed_description', '')
+            detected_priority = priority_detector.detect_priority(description)
+            validated_data['priority'] = detected_priority
+            logger.info(f"AI auto-detected priority: {detected_priority} for claim")
+        
         claim = Claim.objects.create(**validated_data)
         return claim
 
@@ -187,6 +207,9 @@ class CustomerClaimCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Claim
         fields = ['warranty_id', 'issue_type', 'issue_summary', 'description', 'priority']
+        extra_kwargs = {
+            'priority': {'required': False}  # Optional - will be auto-detected by AI
+        }
     
     def validate_warranty_id(self, value):
         """Validate warranty belongs to customer and is active"""
@@ -219,6 +242,13 @@ class CustomerClaimCreateSerializer(serializers.ModelSerializer):
         # Set warranty
         validated_data['warranty'] = warranty
         validated_data['created_by'] = self.context['request'].user
+        
+        # Auto-detect priority using AI if not provided
+        if 'priority' not in validated_data or not validated_data['priority']:
+            description = validated_data.get('detailed_description', '')
+            detected_priority = priority_detector.detect_priority(description)
+            validated_data['priority'] = detected_priority
+            logger.info(f"AI auto-detected priority: {detected_priority} for customer claim")
         
         claim = Claim.objects.create(**validated_data)
         return claim
