@@ -967,7 +967,7 @@ SOFTWARE.
 
 ---
 
-**Built with ❤️ by the Warranty Wallet Team**
+**Built with ❤️ by the xTeam**
 
 *Last Updated: October 2025*
 
