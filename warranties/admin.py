@@ -102,27 +102,47 @@ class CustomerWarrantyAdmin(admin.ModelAdmin):
     search_fields = ['product_name', 'customer__email', 'customer__username', 'notes']
     ordering = ['-created_at']
     date_hierarchy = 'expiry_date'
-    readonly_fields = ['customer', 'is_active', 'days_remaining', 'get_status', 'created_at', 'updated_at']
     
-    fieldsets = (
-        ('Product Information', {
-            'fields': ('customer', 'product_name', 'expiry_date')
-        }),
-        ('Warranty Document', {
-            'fields': ('warranty_image',)
-        }),
-        ('Additional Details', {
-            'fields': ('notes',)
-        }),
-        ('Status', {
-            'fields': ('get_status', 'is_active', 'days_remaining'),
-            'classes': ('collapse',)
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
+    def get_readonly_fields(self, request, obj=None):
+        """Make customer readonly only when editing, not when adding"""
+        if obj:  # Editing existing object
+            return ['customer', 'is_active', 'days_remaining', 'get_status', 'created_at', 'updated_at']
+        return ['is_active', 'days_remaining', 'get_status', 'created_at', 'updated_at']
+    
+    def get_fieldsets(self, request, obj=None):
+        """Different fieldsets for add vs change"""
+        if obj is None:  # Adding new warranty
+            return (
+                ('Product Information', {
+                    'fields': ('customer', 'product_name', 'expiry_date')
+                }),
+                ('Warranty Document', {
+                    'fields': ('warranty_image',)
+                }),
+                ('Additional Details', {
+                    'fields': ('notes',)
+                }),
+            )
+        else:  # Editing existing warranty
+            return (
+                ('Product Information', {
+                    'fields': ('customer', 'product_name', 'expiry_date')
+                }),
+                ('Warranty Document', {
+                    'fields': ('warranty_image',)
+                }),
+                ('Additional Details', {
+                    'fields': ('notes',)
+                }),
+                ('Status', {
+                    'fields': ('get_status', 'is_active', 'days_remaining'),
+                    'classes': ('collapse',)
+                }),
+                ('Timestamps', {
+                    'fields': ('created_at', 'updated_at'),
+                    'classes': ('collapse',)
+                }),
+            )
     
     @admin.display(description='Customer Email')
     def customer_email(self, obj):
