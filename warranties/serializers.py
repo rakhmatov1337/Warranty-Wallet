@@ -143,6 +143,24 @@ class CustomerWarrantyCreateSerializer(serializers.ModelSerializer):
         if value < timezone.now().date():
             raise serializers.ValidationError("Expiry date must be in the future")
         return value
+    
+    def validate_warranty_image(self, value):
+        """Validate warranty image file size and type"""
+        # Check file size (max 10MB)
+        max_size = 10 * 1024 * 1024  # 10MB in bytes
+        if value.size > max_size:
+            raise serializers.ValidationError(
+                f"File size exceeds maximum limit of 10MB. Your file is {value.size / (1024*1024):.2f}MB"
+            )
+        
+        # Check file type (images only)
+        allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+        if value.content_type not in allowed_types:
+            raise serializers.ValidationError(
+                f"Invalid file type. Allowed types: JPEG, PNG, GIF, WebP. Got: {value.content_type}"
+            )
+        
+        return value
 
 
 class CustomerWarrantyUpdateSerializer(serializers.ModelSerializer):
@@ -157,4 +175,25 @@ class CustomerWarrantyUpdateSerializer(serializers.ModelSerializer):
         from django.utils import timezone
         if value < timezone.now().date():
             raise serializers.ValidationError("Expiry date must be in the future")
+        return value
+    
+    def validate_warranty_image(self, value):
+        """Validate warranty image file size and type"""
+        if not value:  # Allow null when not updating image
+            return value
+        
+        # Check file size (max 10MB)
+        max_size = 10 * 1024 * 1024  # 10MB in bytes
+        if value.size > max_size:
+            raise serializers.ValidationError(
+                f"File size exceeds maximum limit of 10MB. Your file is {value.size / (1024*1024):.2f}MB"
+            )
+        
+        # Check file type (images only)
+        allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+        if value.content_type not in allowed_types:
+            raise serializers.ValidationError(
+                f"Invalid file type. Allowed types: JPEG, PNG, GIF, WebP. Got: {value.content_type}"
+            )
+        
         return value
