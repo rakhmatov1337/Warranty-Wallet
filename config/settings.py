@@ -206,6 +206,11 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 
+# Hugging Face API Configuration for AI Analytics
+# Set your token in environment variable: HF_TOKEN
+HUGGINGFACE_API_KEY = os.environ.get('HF_TOKEN', None)
+
+
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 

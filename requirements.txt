@@ -9,3 +9,11 @@ django-query-counter==0.4.0
 psycopg2-binary==2.9.10
 python-decouple==3.8
 python-dateutil==2.9.0
+
+# AI/ML packages
+huggingface-hub==0.20.3
+transformers==4.36.2
+torch
+sentence-transformers==2.2.2
+scikit-learn==1.4.0
+numpy==1.26.3

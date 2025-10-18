@@ -6,7 +6,7 @@ from warranties.models import Warranty
 from claims.models import Claim, ClaimNote
 from django.db.models import (
     Avg, Count, Sum, Q, F, ExpressionWrapper, DurationField,
-    Case, When, IntegerField, CharField, Value, Subquery, OuterRef, FloatField
+    Case, When, IntegerField, CharField, Value, Subquery, OuterRef
 )
 from django.db.models.functions import TruncMonth, Lower
 from django.utils import timezone
@@ -16,7 +16,7 @@ from decimal import Decimal
 from .ai_service import ClaimAnalyticsAI
 
 
-class AnalyticsOverview(APIView):
+class AnalyticsOverviewOptimized(APIView):
     """
     OPTIMIZED analytics endpoint with minimal database queries
     Uses subqueries, annotations, and conditional aggregation
@@ -92,7 +92,10 @@ class AnalyticsOverview(APIView):
         claim_stats = Claim.objects.filter(claims_filter).aggregate(
             total_claims=Count('id', filter=~Q(status='In Review')),
             approved_claims=Count('id', filter=Q(status='Approved')),
-            total_claims_last=Count('id', filter=Q(submitted_at__lte=last_month_end) & ~Q(status='In Review')),
+            total_claims_last=Count('id', filter=Q(
+                submitted_at__lte=last_month_end,
+                ~Q(status='In Review')
+            )),
             approved_claims_last=Count('id', filter=Q(
                 status='Approved',
                 submitted_at__lte=last_month_end
@@ -351,7 +354,7 @@ class AnalyticsOverview(APIView):
         return round(((current - previous) / previous) * 100, 1)
 
 
-class RetailerAIInsights(APIView):
+class RetailerAIInsightsOptimized(APIView):
     """
     OPTIMIZED AI-powered insights for retailers
     Uses efficient querying with minimal database hits
@@ -409,7 +412,7 @@ class RetailerAIInsights(APIView):
                 When(claim_count=0, then=Value(0.0)),
                 default=ExpressionWrapper(
                     F('approved_count') * 100.0 / F('claim_count'),
-                    output_field=FloatField()
+                    output_field=IntegerField()
                 )
             )
         ).order_by('-claim_count')[:10].values(

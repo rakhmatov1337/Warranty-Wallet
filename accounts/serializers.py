@@ -6,10 +6,12 @@ User = get_user_model()
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
+    access = serializers.CharField(read_only=True)
+    refresh = serializers.CharField(read_only=True)
 
     class Meta:
         model = User
-        fields = ('id', 'email', 'full_name', 'phone_number', 'password', 'role')
+        fields = ('id', 'email', 'full_name', 'phone_number', 'password', 'role', 'access', 'refresh')
         extra_kwargs = {
             'role': {'default': 'customer'}
         }
@@ -33,6 +35,17 @@ class RegisterSerializer(serializers.ModelSerializer):
             notify_welcome(user)
         
         return user
+    
+    def to_representation(self, instance):
+        """Add JWT tokens to the response"""
+        data = super().to_representation(instance)
+        
+        # Generate tokens for the newly created user
+        refresh = RefreshToken.for_user(instance)
+        data['refresh'] = str(refresh)
+        data['access'] = str(refresh.access_token)
+        
+        return data
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:

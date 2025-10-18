@@ -145,15 +145,18 @@ class ClaimCreateSerializer(serializers.ModelSerializer):
 
 
 class ClaimUpdateSerializer(serializers.ModelSerializer):
-    """Serializer for updating claims (retailer/admin only) - Only status can be changed"""
+    """Serializer for updating claims (retailer/admin only) - Status, priority, and costs can be changed"""
     
     class Meta:
         model = Claim
-        fields = ['status']
+        fields = ['status', 'priority', 'estimated_cost', 'actual_cost']
     
     def update(self, instance, validated_data):
-        # Update the status
+        # Update allowed fields
         instance.status = validated_data.get('status', instance.status)
+        instance.priority = validated_data.get('priority', instance.priority)
+        instance.estimated_cost = validated_data.get('estimated_cost', instance.estimated_cost)
+        instance.actual_cost = validated_data.get('actual_cost', instance.actual_cost)
         instance.save()
         return instance
 
