@@ -293,7 +293,7 @@ class PublicStoreListView(generics.ListAPIView):
     Public API to list all stores with map URLs.
     No authentication required - accessible to everyone.
     """
-    queryset = Store.objects.filter(is_verified=True).order_by('-created_at')
+    queryset = Store.objects.all().order_by('-created_at')
     serializer_class = StoreListSerializer
     permission_classes = [permissions.AllowAny]
     
