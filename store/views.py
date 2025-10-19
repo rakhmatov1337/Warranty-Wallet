@@ -158,56 +158,74 @@ class StoreViewSet(viewsets.ModelViewSet):
         resolution_change = self._calculate_percentage_change(avg_resolution_this_month, avg_resolution_last_month, inverse=True)
         
         # RECENT ACTIVITY (Last 24 hours)
+        # Only show activities performed by store's retailer admins
         recent_activity = []
         last_24h = now - timedelta(hours=24)
         
-        # Recent Claims (Approved/Rejected)
+        # Get store admins (retailers)
+        store_admins = store.admins.all()
+        
+        # Recent Claims (Approved/Rejected by store retailers)
         recent_claims = Claim.objects.filter(
             warranty__receipt_item__receipt__store=store,
+            warranty__receipt_item__receipt__retailer__in=store_admins,
             updated_at__gte=last_24h
-        ).exclude(status='In Review').order_by('-updated_at')[:10]
+        ).exclude(status='In Review').select_related(
+            'warranty__receipt_item__receipt__retailer'
+        ).order_by('-updated_at')[:10]
         
         for claim in recent_claims:
             activity_type = 'claim_approved' if claim.status == 'Approved' else 'claim_rejected'
+            retailer_name = claim.warranty.receipt_item.receipt.retailer.full_name or claim.warranty.receipt_item.receipt.retailer.email
             recent_activity.append({
                 'type': activity_type,
                 'title': f"Claim #{claim.claim_number} {claim.status}",
                 'description': f"{claim.product_name} warranty claim",
                 'timestamp': claim.updated_at,
                 'status': claim.status,
-                'icon': 'check' if claim.status == 'Approved' else 'x'
+                'icon': 'check' if claim.status == 'Approved' else 'x',
+                'performed_by': retailer_name
             })
         
-        # Recent Receipts
+        # Recent Receipts (sent by store retailers)
         recent_receipts = Receipt.objects.filter(
             store=store,
+            retailer__in=store_admins,
             created_at__gte=last_24h
-        ).order_by('-created_at')[:10]
+        ).select_related('retailer', 'customer').order_by('-created_at')[:10]
         
         for receipt in recent_receipts:
+            retailer_name = receipt.retailer.full_name or receipt.retailer.email
             recent_activity.append({
                 'type': 'receipt_sent',
                 'title': f"Receipt sent to {receipt.customer.email}",
                 'description': f"Receipt #{receipt.receipt_number} - ${receipt.total}",
                 'timestamp': receipt.created_at,
                 'status': None,
-                'icon': 'dollar'
+                'icon': 'dollar',
+                'performed_by': retailer_name
             })
         
-        # Recent Warranties
+        # Recent Warranties (registered by store retailers)
         recent_warranties = Warranty.objects.filter(
             receipt_item__receipt__store=store,
+            receipt_item__receipt__retailer__in=store_admins,
             created_at__gte=last_24h
+        ).select_related(
+            'receipt_item__receipt__retailer',
+            'receipt_item'
         ).order_by('-created_at')[:10]
         
         for warranty in recent_warranties:
+            retailer_name = warranty.receipt_item.receipt.retailer.full_name or warranty.receipt_item.receipt.retailer.email
             recent_activity.append({
                 'type': 'warranty_registered',
                 'title': "New warranty registered",
                 'description': f"{warranty.receipt_item.product_name} - {warranty.coverage_period_months} months coverage",
                 'timestamp': warranty.created_at,
                 'status': None,
-                'icon': 'shield'
+                'icon': 'shield',
+                'performed_by': retailer_name
             })
         
         # Sort all activities by timestamp
