@@ -4,6 +4,7 @@ from receipts.serializers import ReceiptSerializer, ReceiptItemSerializer
 from receipts.models import ReceiptItem
 from accounts.serializers import UserSerializer
 from store.serializers import StoreSerializer
+from django.utils import timezone
 
 class WarrantyDetailSerializer(serializers.ModelSerializer):
     # Receipt information with all items (including product details)
@@ -197,3 +198,59 @@ class CustomerWarrantyUpdateSerializer(serializers.ModelSerializer):
             )
         
         return value
+
+
+# ==================== CUSTOMER SELF-VIEW SERIALIZER ====================
+
+class CustomerWarrantyMeSerializer(serializers.ModelSerializer):
+    """
+    Serializer for customers to view their own warranties with receipt item details.
+    Used in /api/warranties/me/ endpoint
+    """
+    # Receipt item details (product info)
+    receipt_item = ReceiptItemSerializer(read_only=True)
+    
+    # Store information
+    store_name = serializers.CharField(source='store.name', read_only=True)
+    store_phone = serializers.CharField(source='store.phone_number', read_only=True)
+    store_address = serializers.CharField(source='store.address', read_only=True)
+    
+    # Receipt basic info
+    receipt_number = serializers.CharField(source='receipt.receipt_number', read_only=True)
+    purchase_date_display = serializers.DateField(source='purchase_date', read_only=True)
+    
+    # Warranty status fields
+    is_active = serializers.SerializerMethodField()
+    is_expiring_soon = serializers.SerializerMethodField()
+    remaining_days = serializers.ReadOnlyField()
+    coverage_value = serializers.ReadOnlyField()
+    claims_count = serializers.ReadOnlyField()
+    
+    class Meta:
+        model = Warranty
+        fields = [
+            'id',
+            # Receipt item (product details)
+            'receipt_item',
+            # Store info
+            'store_name', 'store_phone', 'store_address',
+            # Receipt info
+            'receipt_number', 'purchase_date_display',
+            # Warranty details
+            'coverage_period_months', 'provider', 'coverage_terms',
+            'purchase_date', 'expiry_date', 'status',
+            # Status fields
+            'is_active', 'is_expiring_soon', 'remaining_days',
+            'coverage_value', 'claims_count',
+            # Timestamps
+            'created_at', 'updated_at'
+        ]
+    
+    def get_is_active(self, obj):
+        """Check if warranty is currently active (not expired)"""
+        return obj.expiry_date >= timezone.now().date()
+    
+    def get_is_expiring_soon(self, obj):
+        """Check if warranty is expiring within 30 days"""
+        days = obj.remaining_days
+        return 0 < days <= 30

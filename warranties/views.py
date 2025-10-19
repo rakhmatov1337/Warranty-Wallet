@@ -1,8 +1,12 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from .models import Warranty
-from .serializers import WarrantyListSerializer, WarrantyDetailSerializer, WarrantyCreateSerializer
+from .serializers import (
+    WarrantyListSerializer, WarrantyDetailSerializer, 
+    WarrantyCreateSerializer, CustomerWarrantyMeSerializer
+)
 from django.db.models import Q, Sum, Count, F
 from django.utils import timezone
 from datetime import timedelta
@@ -198,3 +202,80 @@ class WarrantyViewSet(viewsets.ModelViewSet):
             ])
         
         return response
+
+
+class CustomerWarrantyMeView(APIView):
+    """
+    GET /api/warranties/me/
+    Returns all warranties for the authenticated customer with receipt item details.
+    Only accessible to customers.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        # Ensure user is a customer
+        if request.user.role != 'customer':
+            return Response(
+                {'error': 'This endpoint is only accessible to customers'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get all warranties for this customer with optimized query
+        warranties = Warranty.objects.filter(
+            receipt_item__receipt__customer=request.user
+        ).select_related(
+            'receipt_item',
+            'receipt_item__receipt',
+            'receipt_item__receipt__store',
+            'receipt_item__receipt__retailer'
+        ).prefetch_related('claims').order_by('-created_at')
+        
+        # Apply optional filters
+        status_filter = request.query_params.get('status', None)
+        if status_filter:
+            today = timezone.now().date()
+            if status_filter == 'active':
+                warranties = warranties.filter(expiry_date__gte=today)
+            elif status_filter == 'expired':
+                warranties = warranties.filter(expiry_date__lt=today)
+            elif status_filter == 'expiring_soon':
+                soon_date = today + timedelta(days=30)
+                warranties = warranties.filter(
+                    expiry_date__gte=today,
+                    expiry_date__lte=soon_date
+                )
+        
+        # Search by product name
+        search = request.query_params.get('search', None)
+        if search:
+            warranties = warranties.filter(
+                Q(receipt_item__product_name__icontains=search) |
+                Q(receipt_item__model__icontains=search) |
+                Q(receipt_item__serial_number__icontains=search)
+            )
+        
+        # Serialize and return
+        serializer = CustomerWarrantyMeSerializer(warranties, many=True, context={'request': request})
+        
+        # Calculate statistics
+        today = timezone.now().date()
+        soon_date = today + timedelta(days=30)
+        
+        total_count = warranties.count()
+        active_count = warranties.filter(expiry_date__gte=today).count()
+        expired_count = warranties.filter(expiry_date__lt=today).count()
+        expiring_soon_count = warranties.filter(
+            expiry_date__gte=today,
+            expiry_date__lte=soon_date
+        ).count()
+        
+        return Response({
+            'count': total_count,
+            'statistics': {
+                'total': total_count,
+                'active': active_count,
+                'expired': expired_count,
+                'expiring_soon': expiring_soon_count
+            },
+            'results': serializer.data
+        })
