@@ -47,18 +47,24 @@ class StoreSerializer(serializers.ModelSerializer):
 
 class StoreListSerializer(serializers.ModelSerializer):
     """
-    Public serializer for store list with map URLs
+    Public serializer for store list with map URLs and success rate
     """
     image_url = serializers.SerializerMethodField()
     yandex_map_url = serializers.SerializerMethodField()
     google_map_url = serializers.SerializerMethodField()
+    success_rate = serializers.SerializerMethodField()
+    total_claims = serializers.SerializerMethodField()
+    approved_claims = serializers.SerializerMethodField()
+    rejected_claims = serializers.SerializerMethodField()
     
     class Meta:
         model = Store
         fields = [
             'id', 'name', 'image', 'image_url', 'phone_number', 'email', 
             'address', 'latitude', 'longitude', 'is_verified',
-            'yandex_map_url', 'google_map_url', 'created_at'
+            'yandex_map_url', 'google_map_url',
+            'success_rate', 'total_claims', 'approved_claims', 'rejected_claims',
+            'created_at'
         ]
     
     def get_image_url(self, obj):
@@ -83,11 +89,59 @@ class StoreListSerializer(serializers.ModelSerializer):
             # Google Maps route URL format
             return f"https://www.google.com/maps/dir/?api=1&destination={obj.latitude},{obj.longitude}"
         return None
+    
+    def get_total_claims(self, obj):
+        """Get total number of claims for this store"""
+        from claims.models import Claim
+        return Claim.objects.filter(
+            warranty__receipt_item__receipt__store=obj
+        ).exclude(status='In Review').count()
+    
+    def get_approved_claims(self, obj):
+        """Get number of approved claims"""
+        from claims.models import Claim
+        return Claim.objects.filter(
+            warranty__receipt_item__receipt__store=obj,
+            status='Approved'
+        ).count()
+    
+    def get_rejected_claims(self, obj):
+        """Get number of rejected claims"""
+        from claims.models import Claim
+        return Claim.objects.filter(
+            warranty__receipt_item__receipt__store=obj,
+            status='Rejected'
+        ).count()
+    
+    def get_success_rate(self, obj):
+        """
+        Calculate success rate (approval rate) for the store
+        Success rate = (Approved claims / Total resolved claims) * 100
+        """
+        from claims.models import Claim
+        
+        # Get total resolved claims (Approved + Rejected)
+        total_resolved = Claim.objects.filter(
+            warranty__receipt_item__receipt__store=obj
+        ).exclude(status='In Review').count()
+        
+        if total_resolved == 0:
+            return None  # No claims yet
+        
+        # Get approved claims
+        approved = Claim.objects.filter(
+            warranty__receipt_item__receipt__store=obj,
+            status='Approved'
+        ).count()
+        
+        # Calculate success rate
+        success_rate = (approved / total_resolved) * 100
+        return round(success_rate, 1)
 
 
 class StoreDetailSerializer(serializers.ModelSerializer):
     """
-    Public serializer for store detail with map URLs and admin info
+    Public serializer for store detail with map URLs, admin info, and success rate
     """
     image_url = serializers.SerializerMethodField()
     yandex_map_url = serializers.SerializerMethodField()
@@ -95,6 +149,11 @@ class StoreDetailSerializer(serializers.ModelSerializer):
     yandex_map_embed_url = serializers.SerializerMethodField()
     google_map_embed_url = serializers.SerializerMethodField()
     admin_count = serializers.SerializerMethodField()
+    success_rate = serializers.SerializerMethodField()
+    total_claims = serializers.SerializerMethodField()
+    approved_claims = serializers.SerializerMethodField()
+    rejected_claims = serializers.SerializerMethodField()
+    pending_claims = serializers.SerializerMethodField()
     
     class Meta:
         model = Store
@@ -103,7 +162,9 @@ class StoreDetailSerializer(serializers.ModelSerializer):
             'address', 'latitude', 'longitude', 'is_verified',
             'yandex_map_url', 'google_map_url',
             'yandex_map_embed_url', 'google_map_embed_url',
-            'admin_count', 'created_at', 'updated_at'
+            'admin_count', 'success_rate', 'total_claims', 
+            'approved_claims', 'rejected_claims', 'pending_claims',
+            'created_at', 'updated_at'
         ]
     
     def get_image_url(self, obj):
@@ -142,4 +203,60 @@ class StoreDetailSerializer(serializers.ModelSerializer):
     def get_admin_count(self, obj):
         """Get number of store admins"""
         return obj.admins.count()
+    
+    def get_total_claims(self, obj):
+        """Get total number of claims for this store"""
+        from claims.models import Claim
+        return Claim.objects.filter(
+            warranty__receipt_item__receipt__store=obj
+        ).exclude(status='In Review').count()
+    
+    def get_approved_claims(self, obj):
+        """Get number of approved claims"""
+        from claims.models import Claim
+        return Claim.objects.filter(
+            warranty__receipt_item__receipt__store=obj,
+            status='Approved'
+        ).count()
+    
+    def get_rejected_claims(self, obj):
+        """Get number of rejected claims"""
+        from claims.models import Claim
+        return Claim.objects.filter(
+            warranty__receipt_item__receipt__store=obj,
+            status='Rejected'
+        ).count()
+    
+    def get_pending_claims(self, obj):
+        """Get number of pending (In Review) claims"""
+        from claims.models import Claim
+        return Claim.objects.filter(
+            warranty__receipt_item__receipt__store=obj,
+            status='In Review'
+        ).count()
+    
+    def get_success_rate(self, obj):
+        """
+        Calculate success rate (approval rate) for the store
+        Success rate = (Approved claims / Total resolved claims) * 100
+        """
+        from claims.models import Claim
+        
+        # Get total resolved claims (Approved + Rejected)
+        total_resolved = Claim.objects.filter(
+            warranty__receipt_item__receipt__store=obj
+        ).exclude(status='In Review').count()
+        
+        if total_resolved == 0:
+            return None  # No claims yet
+        
+        # Get approved claims
+        approved = Claim.objects.filter(
+            warranty__receipt_item__receipt__store=obj,
+            status='Approved'
+        ).count()
+        
+        # Calculate success rate
+        success_rate = (approved / total_resolved) * 100
+        return round(success_rate, 1)
 
