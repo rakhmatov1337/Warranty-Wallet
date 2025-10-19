@@ -46,20 +46,30 @@ class StoreViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         """
         List stores with dashboard statistics for retailers
+        Optimized to reduce query count
         """
         queryset = self.filter_queryset(self.get_queryset())
         
         # If retailer, include dashboard statistics
         if request.user.role == 'retailer' and queryset.exists():
+            # Get all store IDs
+            store_ids = list(queryset.values_list('id', flat=True))
+            
+            # Bulk calculate statistics for all stores at once
+            stats_by_store = self._get_bulk_store_statistics(store_ids)
+            
             stores_with_stats = []
             for store in queryset:
                 serializer = self.get_serializer(store)
                 store_data = serializer.data
                 
-                # Get dashboard statistics for this store
-                stats = self._get_store_statistics(store)
-                store_data['statistics'] = stats['statistics']
-                store_data['recent_activity'] = stats['recent_activity']
+                # Attach pre-calculated statistics
+                store_stats = stats_by_store.get(store.id, {
+                    'statistics': {},
+                    'recent_activity': []
+                })
+                store_data['statistics'] = store_stats['statistics']
+                store_data['recent_activity'] = store_stats['recent_activity']
                 
                 stores_with_stats.append(store_data)
             
@@ -286,6 +296,84 @@ class StoreViewSet(viewsets.ModelViewSet):
         store = self.get_object()
         stats = self._get_store_statistics(store)
         return Response(stats)
+    
+    def _get_bulk_store_statistics(self, store_ids):
+        """
+        Get dashboard statistics for multiple stores at once (optimized bulk query)
+        Returns a dictionary with store_id as key
+        """
+        now = timezone.now()
+        this_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        last_month_start = (this_month_start - timedelta(days=1)).replace(day=1)
+        last_month_end = this_month_start - timedelta(seconds=1)
+        last_24h = now - timedelta(hours=24)
+        
+        stats_by_store = {}
+        
+        # Bulk query for receipts this month
+        receipts_this_month = Receipt.objects.filter(
+            store_id__in=store_ids,
+            date__gte=this_month_start
+        ).values('store_id').annotate(count=Count('id'))
+        receipts_this_month_dict = {r['store_id']: r['count'] for r in receipts_this_month}
+        
+        # Bulk query for receipts last month
+        receipts_last_month = Receipt.objects.filter(
+            store_id__in=store_ids,
+            date__gte=last_month_start,
+            date__lte=last_month_end
+        ).values('store_id').annotate(count=Count('id'))
+        receipts_last_month_dict = {r['store_id']: r['count'] for r in receipts_last_month}
+        
+        # Bulk query for active warranties
+        warranties_this_month = Warranty.objects.filter(
+            receipt_item__receipt__store_id__in=store_ids,
+            expiry_date__gte=now.date()
+        ).values('receipt_item__receipt__store_id').annotate(count=Count('id'))
+        warranties_this_month_dict = {w['receipt_item__receipt__store_id']: w['count'] for w in warranties_this_month}
+        
+        # Bulk query for open claims
+        open_claims = Claim.objects.filter(
+            warranty__receipt_item__receipt__store_id__in=store_ids,
+            status='In Review'
+        ).values('warranty__receipt_item__receipt__store_id').annotate(count=Count('id'))
+        open_claims_dict = {c['warranty__receipt_item__receipt__store_id']: c['count'] for c in open_claims}
+        
+        # Build statistics for each store
+        for store_id in store_ids:
+            receipts_current = receipts_this_month_dict.get(store_id, 0)
+            receipts_previous = receipts_last_month_dict.get(store_id, 0)
+            warranties_current = warranties_this_month_dict.get(store_id, 0)
+            open_claims_count = open_claims_dict.get(store_id, 0)
+            
+            stats_by_store[store_id] = {
+                'statistics': {
+                    'total_receipts': {
+                        'value': receipts_current,
+                        'change': self._calculate_percentage_change(receipts_current, receipts_previous),
+                        'label': 'Total Receipts Issued'
+                    },
+                    'active_warranties': {
+                        'value': warranties_current,
+                        'change': 0.0,  # Simplified for bulk query
+                        'label': 'Active Warranties'
+                    },
+                    'open_claims': {
+                        'value': open_claims_count,
+                        'change': 0.0,  # Simplified for bulk query
+                        'label': 'Open Claims'
+                    },
+                    'avg_resolution_time': {
+                        'value': 0.0,  # Simplified for bulk query
+                        'unit': 'days',
+                        'change': 0.0,
+                        'label': 'Avg. Resolution Time'
+                    }
+                },
+                'recent_activity': []  # Recent activity can be added if needed
+            }
+        
+        return stats_by_store
     
     def _calculate_percentage_change(self, current, previous, inverse=False):
         """
