@@ -3,7 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import Store
 from .serializers import StoreSerializer, StoreListSerializer, StoreDetailSerializer
-from django.db.models import Count, Q, Avg, Sum
+from django.db.models import Count, Q, Avg, Sum, F, Case, When, FloatField, ExpressionWrapper
 from django.utils import timezone
 from datetime import timedelta, datetime
 from receipts.models import Receipt
@@ -317,8 +317,6 @@ class PublicStoreListView(generics.ListAPIView):
     permission_classes = [permissions.AllowAny]
     
     def get_queryset(self):
-        from django.db.models import Case, When, IntegerField, FloatField, ExpressionWrapper
-        
         # Annotate with claim statistics to prevent N+1 queries
         queryset = Store.objects.annotate(
             # Total resolved claims (Approved + Rejected)
@@ -381,8 +379,6 @@ class PublicStoreDetailView(generics.RetrieveAPIView):
     permission_classes = [permissions.AllowAny]
     
     def get_queryset(self):
-        from django.db.models import Case, When, FloatField, ExpressionWrapper
-        
         # Annotate with claim statistics and prefetch admins
         return Store.objects.annotate(
             # Total resolved claims (Approved + Rejected)
