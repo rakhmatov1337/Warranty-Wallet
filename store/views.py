@@ -35,11 +35,12 @@ class StoreViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         user = self.request.user
+        # Prefetch admins to avoid N+1 queries
         if user.role == 'admin':
-            return Store.objects.all()
+            return Store.objects.prefetch_related('admins').all()
         elif user.role == 'retailer':
             # Retailers can only see stores they manage
-            return user.managed_stores.all()
+            return user.managed_stores.prefetch_related('admins').all()
         return Store.objects.none()
     
     def list(self, request, *args, **kwargs):
@@ -310,13 +311,44 @@ class PublicStoreListView(generics.ListAPIView):
     """
     Public API to list all stores with map URLs.
     No authentication required - accessible to everyone.
+    Optimized with annotations to prevent N+1 queries.
     """
-    queryset = Store.objects.all().order_by('-created_at')
     serializer_class = StoreListSerializer
     permission_classes = [permissions.AllowAny]
     
     def get_queryset(self):
-        queryset = super().get_queryset()
+        from django.db.models import Case, When, IntegerField, FloatField, ExpressionWrapper
+        
+        # Annotate with claim statistics to prevent N+1 queries
+        queryset = Store.objects.annotate(
+            # Total resolved claims (Approved + Rejected)
+            total_claims_count=Count(
+                'receipts__items__warranty__claims',
+                filter=~Q(receipts__items__warranty__claims__status='In Review'),
+                distinct=True
+            ),
+            # Approved claims count
+            approved_claims_count=Count(
+                'receipts__items__warranty__claims',
+                filter=Q(receipts__items__warranty__claims__status='Approved'),
+                distinct=True
+            ),
+            # Rejected claims count
+            rejected_claims_count=Count(
+                'receipts__items__warranty__claims',
+                filter=Q(receipts__items__warranty__claims__status='Rejected'),
+                distinct=True
+            ),
+            # Success rate calculation
+            calculated_success_rate=Case(
+                When(total_claims_count=0, then=None),
+                default=ExpressionWrapper(
+                    F('approved_claims_count') * 100.0 / F('total_claims_count'),
+                    output_field=FloatField()
+                ),
+                output_field=FloatField()
+            )
+        ).order_by('-created_at')
         
         # Optional search filter
         search = self.request.query_params.get('search', None)
@@ -343,7 +375,49 @@ class PublicStoreDetailView(generics.RetrieveAPIView):
     """
     Public API to get store details with map URLs.
     No authentication required - accessible to everyone.
+    Optimized with annotations to prevent N+1 queries.
     """
-    queryset = Store.objects.all()
     serializer_class = StoreDetailSerializer
     permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        from django.db.models import Case, When, FloatField, ExpressionWrapper
+        
+        # Annotate with claim statistics and prefetch admins
+        return Store.objects.annotate(
+            # Total resolved claims (Approved + Rejected)
+            total_claims_count=Count(
+                'receipts__items__warranty__claims',
+                filter=~Q(receipts__items__warranty__claims__status='In Review'),
+                distinct=True
+            ),
+            # Approved claims count
+            approved_claims_count=Count(
+                'receipts__items__warranty__claims',
+                filter=Q(receipts__items__warranty__claims__status='Approved'),
+                distinct=True
+            ),
+            # Rejected claims count
+            rejected_claims_count=Count(
+                'receipts__items__warranty__claims',
+                filter=Q(receipts__items__warranty__claims__status='Rejected'),
+                distinct=True
+            ),
+            # Pending claims count
+            pending_claims_count=Count(
+                'receipts__items__warranty__claims',
+                filter=Q(receipts__items__warranty__claims__status='In Review'),
+                distinct=True
+            ),
+            # Success rate calculation
+            calculated_success_rate=Case(
+                When(total_claims_count=0, then=None),
+                default=ExpressionWrapper(
+                    F('approved_claims_count') * 100.0 / F('total_claims_count'),
+                    output_field=FloatField()
+                ),
+                output_field=FloatField()
+            ),
+            # Admin count
+            admin_count_annotated=Count('admins', distinct=True)
+        ).prefetch_related('admins')

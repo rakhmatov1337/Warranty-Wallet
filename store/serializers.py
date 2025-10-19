@@ -91,52 +91,32 @@ class StoreListSerializer(serializers.ModelSerializer):
         return None
     
     def get_total_claims(self, obj):
-        """Get total number of claims for this store"""
-        from claims.models import Claim
-        return Claim.objects.filter(
-            warranty__receipt_item__receipt__store=obj
-        ).exclude(status='In Review').count()
+        """Get total number of claims for this store (from annotation)"""
+        # Use annotated field if available, otherwise query database
+        return getattr(obj, 'total_claims_count', 0)
     
     def get_approved_claims(self, obj):
-        """Get number of approved claims"""
-        from claims.models import Claim
-        return Claim.objects.filter(
-            warranty__receipt_item__receipt__store=obj,
-            status='Approved'
-        ).count()
+        """Get number of approved claims (from annotation)"""
+        # Use annotated field if available, otherwise query database
+        return getattr(obj, 'approved_claims_count', 0)
     
     def get_rejected_claims(self, obj):
-        """Get number of rejected claims"""
-        from claims.models import Claim
-        return Claim.objects.filter(
-            warranty__receipt_item__receipt__store=obj,
-            status='Rejected'
-        ).count()
+        """Get number of rejected claims (from annotation)"""
+        # Use annotated field if available, otherwise query database
+        return getattr(obj, 'rejected_claims_count', 0)
     
     def get_success_rate(self, obj):
         """
         Calculate success rate (approval rate) for the store
-        Success rate = (Approved claims / Total resolved claims) * 100
+        Uses annotated field if available for better performance
         """
-        from claims.models import Claim
+        # Use pre-calculated success rate from annotation
+        success_rate = getattr(obj, 'calculated_success_rate', None)
         
-        # Get total resolved claims (Approved + Rejected)
-        total_resolved = Claim.objects.filter(
-            warranty__receipt_item__receipt__store=obj
-        ).exclude(status='In Review').count()
+        if success_rate is not None:
+            return round(success_rate, 1)
         
-        if total_resolved == 0:
-            return None  # No claims yet
-        
-        # Get approved claims
-        approved = Claim.objects.filter(
-            warranty__receipt_item__receipt__store=obj,
-            status='Approved'
-        ).count()
-        
-        # Calculate success rate
-        success_rate = (approved / total_resolved) * 100
-        return round(success_rate, 1)
+        return None
 
 
 class StoreDetailSerializer(serializers.ModelSerializer):
@@ -201,62 +181,36 @@ class StoreDetailSerializer(serializers.ModelSerializer):
         return None
     
     def get_admin_count(self, obj):
-        """Get number of store admins"""
-        return obj.admins.count()
+        """Get number of store admins (from annotation)"""
+        # Use annotated field if available, otherwise count
+        return getattr(obj, 'admin_count_annotated', obj.admins.count() if hasattr(obj, 'admins') else 0)
     
     def get_total_claims(self, obj):
-        """Get total number of claims for this store"""
-        from claims.models import Claim
-        return Claim.objects.filter(
-            warranty__receipt_item__receipt__store=obj
-        ).exclude(status='In Review').count()
+        """Get total number of claims for this store (from annotation)"""
+        return getattr(obj, 'total_claims_count', 0)
     
     def get_approved_claims(self, obj):
-        """Get number of approved claims"""
-        from claims.models import Claim
-        return Claim.objects.filter(
-            warranty__receipt_item__receipt__store=obj,
-            status='Approved'
-        ).count()
+        """Get number of approved claims (from annotation)"""
+        return getattr(obj, 'approved_claims_count', 0)
     
     def get_rejected_claims(self, obj):
-        """Get number of rejected claims"""
-        from claims.models import Claim
-        return Claim.objects.filter(
-            warranty__receipt_item__receipt__store=obj,
-            status='Rejected'
-        ).count()
+        """Get number of rejected claims (from annotation)"""
+        return getattr(obj, 'rejected_claims_count', 0)
     
     def get_pending_claims(self, obj):
-        """Get number of pending (In Review) claims"""
-        from claims.models import Claim
-        return Claim.objects.filter(
-            warranty__receipt_item__receipt__store=obj,
-            status='In Review'
-        ).count()
+        """Get number of pending (In Review) claims (from annotation)"""
+        return getattr(obj, 'pending_claims_count', 0)
     
     def get_success_rate(self, obj):
         """
         Calculate success rate (approval rate) for the store
-        Success rate = (Approved claims / Total resolved claims) * 100
+        Uses annotated field if available for better performance
         """
-        from claims.models import Claim
+        # Use pre-calculated success rate from annotation
+        success_rate = getattr(obj, 'calculated_success_rate', None)
         
-        # Get total resolved claims (Approved + Rejected)
-        total_resolved = Claim.objects.filter(
-            warranty__receipt_item__receipt__store=obj
-        ).exclude(status='In Review').count()
+        if success_rate is not None:
+            return round(success_rate, 1)
         
-        if total_resolved == 0:
-            return None  # No claims yet
-        
-        # Get approved claims
-        approved = Claim.objects.filter(
-            warranty__receipt_item__receipt__store=obj,
-            status='Approved'
-        ).count()
-        
-        # Calculate success rate
-        success_rate = (approved / total_resolved) * 100
-        return round(success_rate, 1)
+        return None
 
