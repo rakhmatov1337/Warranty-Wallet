@@ -1,8 +1,8 @@
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, permissions, status, generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import Store
-from .serializers import StoreSerializer
+from .serializers import StoreSerializer, StoreListSerializer, StoreDetailSerializer
 from django.db.models import Count, Q, Avg, Sum
 from django.utils import timezone
 from datetime import timedelta, datetime
@@ -284,3 +284,48 @@ class StoreViewSet(viewsets.ModelViewSet):
             change = -change
         
         return round(change, 1)
+
+
+# ==================== PUBLIC STORE APIs ====================
+
+class PublicStoreListView(generics.ListAPIView):
+    """
+    Public API to list all stores with map URLs.
+    No authentication required - accessible to everyone.
+    """
+    queryset = Store.objects.filter(is_verified=True).order_by('-created_at')
+    serializer_class = StoreListSerializer
+    permission_classes = [permissions.AllowAny]
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        # Optional search filter
+        search = self.request.query_params.get('search', None)
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) |
+                Q(address__icontains=search) |
+                Q(email__icontains=search) |
+                Q(phone_number__icontains=search)
+            )
+        
+        # Filter by verified status (optional)
+        verified = self.request.query_params.get('verified', None)
+        if verified is not None:
+            if verified.lower() == 'true':
+                queryset = queryset.filter(is_verified=True)
+            elif verified.lower() == 'false':
+                queryset = queryset.filter(is_verified=False)
+        
+        return queryset
+
+
+class PublicStoreDetailView(generics.RetrieveAPIView):
+    """
+    Public API to get store details with map URLs.
+    No authentication required - accessible to everyone.
+    """
+    queryset = Store.objects.all()
+    serializer_class = StoreDetailSerializer
+    permission_classes = [permissions.AllowAny]

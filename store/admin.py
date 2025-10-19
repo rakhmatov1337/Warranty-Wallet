@@ -14,6 +14,10 @@ class StoreAdmin(admin.ModelAdmin):
         ('Store Information', {
             'fields': ('name', 'image', 'email', 'phone_number', 'address')
         }),
+        ('Location', {
+            'fields': ('latitude', 'longitude'),
+            'description': 'Store coordinates for map integration (Yandex Maps, Google Maps)'
+        }),
         ('Verification Status', {
             'fields': ('is_verified',),
             'description': 'Only admins can verify stores. Verified stores get a badge.'

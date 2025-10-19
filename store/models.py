@@ -9,6 +9,20 @@ class Store(models.Model):
     phone_number = models.CharField(max_length=20)
     email = models.EmailField()
     address = models.TextField()
+    latitude = models.DecimalField(
+        max_digits=9, 
+        decimal_places=6, 
+        null=True, 
+        blank=True,
+        help_text="Store location latitude"
+    )
+    longitude = models.DecimalField(
+        max_digits=9, 
+        decimal_places=6, 
+        null=True, 
+        blank=True,
+        help_text="Store location longitude"
+    )
     is_verified = models.BooleanField(
         default=False,
         help_text="Indicates if the store is verified by admin"

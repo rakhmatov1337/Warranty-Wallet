@@ -16,7 +16,11 @@ class StoreSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Store
-        fields = ['id', 'name', 'image', 'phone_number', 'email', 'address', 'is_verified', 'admins', 'admin_ids', 'created_at', 'updated_at']
+        fields = [
+            'id', 'name', 'image', 'phone_number', 'email', 'address', 
+            'latitude', 'longitude', 'is_verified', 'admins', 'admin_ids', 
+            'created_at', 'updated_at'
+        ]
         read_only_fields = ['created_at', 'updated_at', 'is_verified']
     
     def validate_image(self, value):
@@ -39,4 +43,103 @@ class StoreSerializer(serializers.ModelSerializer):
             )
         
         return value
+
+
+class StoreListSerializer(serializers.ModelSerializer):
+    """
+    Public serializer for store list with map URLs
+    """
+    image_url = serializers.SerializerMethodField()
+    yandex_map_url = serializers.SerializerMethodField()
+    google_map_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Store
+        fields = [
+            'id', 'name', 'image', 'image_url', 'phone_number', 'email', 
+            'address', 'latitude', 'longitude', 'is_verified',
+            'yandex_map_url', 'google_map_url', 'created_at'
+        ]
+    
+    def get_image_url(self, obj):
+        """Get full URL for store image"""
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None
+    
+    def get_yandex_map_url(self, obj):
+        """Generate Yandex Maps route URL"""
+        if obj.latitude and obj.longitude:
+            # Yandex Maps route URL format
+            return f"https://yandex.com/maps/?rtext=~{obj.latitude},{obj.longitude}&rtt=auto"
+        return None
+    
+    def get_google_map_url(self, obj):
+        """Generate Google Maps route URL"""
+        if obj.latitude and obj.longitude:
+            # Google Maps route URL format
+            return f"https://www.google.com/maps/dir/?api=1&destination={obj.latitude},{obj.longitude}"
+        return None
+
+
+class StoreDetailSerializer(serializers.ModelSerializer):
+    """
+    Public serializer for store detail with map URLs and admin info
+    """
+    image_url = serializers.SerializerMethodField()
+    yandex_map_url = serializers.SerializerMethodField()
+    google_map_url = serializers.SerializerMethodField()
+    yandex_map_embed_url = serializers.SerializerMethodField()
+    google_map_embed_url = serializers.SerializerMethodField()
+    admin_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Store
+        fields = [
+            'id', 'name', 'image', 'image_url', 'phone_number', 'email', 
+            'address', 'latitude', 'longitude', 'is_verified',
+            'yandex_map_url', 'google_map_url',
+            'yandex_map_embed_url', 'google_map_embed_url',
+            'admin_count', 'created_at', 'updated_at'
+        ]
+    
+    def get_image_url(self, obj):
+        """Get full URL for store image"""
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None
+    
+    def get_yandex_map_url(self, obj):
+        """Generate Yandex Maps route URL"""
+        if obj.latitude and obj.longitude:
+            return f"https://yandex.com/maps/?rtext=~{obj.latitude},{obj.longitude}&rtt=auto"
+        return None
+    
+    def get_google_map_url(self, obj):
+        """Generate Google Maps route URL"""
+        if obj.latitude and obj.longitude:
+            return f"https://www.google.com/maps/dir/?api=1&destination={obj.latitude},{obj.longitude}"
+        return None
+    
+    def get_yandex_map_embed_url(self, obj):
+        """Generate Yandex Maps embed URL for iframe"""
+        if obj.latitude and obj.longitude:
+            return f"https://yandex.com/map-widget/v1/?ll={obj.longitude},{obj.latitude}&z=16&pt={obj.longitude},{obj.latitude},pm2rdm"
+        return None
+    
+    def get_google_map_embed_url(self, obj):
+        """Generate Google Maps embed URL for iframe"""
+        if obj.latitude and obj.longitude:
+            return f"https://www.google.com/maps/embed/v1/place?key=YOUR_API_KEY&q={obj.latitude},{obj.longitude}&zoom=16"
+        return None
+    
+    def get_admin_count(self, obj):
+        """Get number of store admins"""
+        return obj.admins.count()
 
