@@ -214,6 +214,7 @@ class CustomerWarrantyMeSerializer(serializers.ModelSerializer):
     store_name = serializers.CharField(source='store.name', read_only=True)
     store_phone = serializers.CharField(source='store.phone_number', read_only=True)
     store_address = serializers.CharField(source='store.address', read_only=True)
+    store_is_verified = serializers.BooleanField(source='store.is_verified', read_only=True)
     
     # Receipt basic info
     receipt_number = serializers.CharField(source='receipt.receipt_number', read_only=True)
@@ -233,7 +234,7 @@ class CustomerWarrantyMeSerializer(serializers.ModelSerializer):
             # Receipt item (product details)
             'receipt_item',
             # Store info
-            'store_name', 'store_phone', 'store_address',
+            'store_name', 'store_phone', 'store_address', 'store_is_verified',
             # Receipt info
             'receipt_number', 'purchase_date_display',
             # Warranty details

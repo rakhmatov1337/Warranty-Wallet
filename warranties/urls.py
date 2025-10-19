@@ -12,7 +12,8 @@ customer_warranty_router.register(r'', CustomerWarrantyViewSet, basename='custom
 
 urlpatterns = [
     # Customer's own warranties (from receipts) with receipt item details
-    path('me/', CustomerWarrantyMeView.as_view(), name='warranty-me'),
+    path('me/', CustomerWarrantyMeView.as_view(), name='warranty-me-list'),
+    path('me/<int:pk>/', CustomerWarrantyMeView.as_view(), name='warranty-me-detail'),
     # Customer manually uploaded warranties
     path('customer/', include(customer_warranty_router.urls)),
     # Main warranty CRUD

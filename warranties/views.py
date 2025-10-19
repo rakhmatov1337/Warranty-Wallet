@@ -212,7 +212,7 @@ class CustomerWarrantyMeView(APIView):
     """
     permission_classes = [permissions.IsAuthenticated]
     
-    def get(self, request):
+    def get(self, request, pk=None):
         # Ensure user is a customer
         if request.user.role != 'customer':
             return Response(
@@ -220,7 +220,27 @@ class CustomerWarrantyMeView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        # Get all warranties for this customer with optimized query
+        # If pk is provided, return detail view
+        if pk:
+            try:
+                warranty = Warranty.objects.select_related(
+                    'receipt_item',
+                    'receipt_item__receipt',
+                    'receipt_item__receipt__store',
+                    'receipt_item__receipt__retailer'
+                ).prefetch_related('claims').get(
+                    pk=pk,
+                    receipt_item__receipt__customer=request.user
+                )
+                serializer = CustomerWarrantyMeSerializer(warranty, context={'request': request})
+                return Response(serializer.data)
+            except Warranty.DoesNotExist:
+                return Response(
+                    {'error': 'Warranty not found or does not belong to you'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        
+        # List view - Get all warranties for this customer with optimized query
         warranties = Warranty.objects.filter(
             receipt_item__receipt__customer=request.user
         ).select_related(

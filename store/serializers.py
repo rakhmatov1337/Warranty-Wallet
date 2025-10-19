@@ -16,8 +16,8 @@ class StoreSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Store
-        fields = ['id', 'name', 'image', 'phone_number', 'email', 'address', 'admins', 'admin_ids', 'created_at', 'updated_at']
-        read_only_fields = ['created_at', 'updated_at']
+        fields = ['id', 'name', 'image', 'phone_number', 'email', 'address', 'is_verified', 'admins', 'admin_ids', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at', 'is_verified']
     
     def validate_image(self, value):
         """Validate store logo/image file size and type"""
